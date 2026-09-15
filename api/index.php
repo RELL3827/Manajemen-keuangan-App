@@ -24,7 +24,8 @@ foreach ($tmpDirs as $dir) {
 // APP_MAINTENANCE_DRIVER is empty or undefined in Vercel.
 $defaultEnvs = [
     'APP_ENV' => 'production',
-    'SESSION_DRIVER' => 'cookie',
+    'SESSION_DRIVER' => 'database',
+    'SESSION_LIFETIME' => '120',
     'APP_MAINTENANCE_DRIVER' => 'file',
     'APP_MAINTENANCE_STORE' => 'database',
     'CACHE_STORE' => 'array',
@@ -45,6 +46,13 @@ foreach ($defaultEnvs as $key => $defaultVal) {
         $_ENV[$key] = $current;
         $_SERVER[$key] = $current;
     }
+}
+
+// Guarantee SESSION_LIFETIME is a positive integer (prevents Max-Age=0 and 419 Page Expired)
+if (empty($_ENV['SESSION_LIFETIME']) || (int)$_ENV['SESSION_LIFETIME'] <= 0) {
+    putenv('SESSION_LIFETIME=120');
+    $_ENV['SESSION_LIFETIME'] = '120';
+    $_SERVER['SESSION_LIFETIME'] = '120';
 }
 
 // Copy bootstrap cache files if available

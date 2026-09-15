@@ -18,7 +18,7 @@ return [
     |
     */
 
-    'driver' => (!empty(env('SESSION_DRIVER')) ? env('SESSION_DRIVER') : 'cookie'),
+    'driver' => (!empty(env('SESSION_DRIVER')) ? env('SESSION_DRIVER') : 'database'),
 
     /*
     |--------------------------------------------------------------------------
@@ -32,9 +32,9 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    'lifetime' => (!empty(env('SESSION_LIFETIME')) && (int)env('SESSION_LIFETIME') > 0) ? (int)env('SESSION_LIFETIME') : 120,
 
-    'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
+    'expire_on_close' => (bool) env('SESSION_EXPIRE_ON_CLOSE', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -156,7 +156,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => (!empty(env('SESSION_DOMAIN')) && env('SESSION_DOMAIN') !== 'null') ? env('SESSION_DOMAIN') : null,
 
     /*
     |--------------------------------------------------------------------------
