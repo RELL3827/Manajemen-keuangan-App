@@ -14,7 +14,7 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    'default' => (!empty(env('MAIL_MAILER')) ? env('MAIL_MAILER') : 'log'),
 
     /*
     |--------------------------------------------------------------------------
@@ -72,7 +72,7 @@ return [
 
         'log' => [
             'transport' => 'log',
-            'channel' => env('MAIL_LOG_CHANNEL'),
+            'channel' => (!empty(env('MAIL_LOG_CHANNEL')) ? env('MAIL_LOG_CHANNEL') : null),
         ],
 
         'array' => [
@@ -83,7 +83,6 @@ return [
             'transport' => 'failover',
             'mailers' => [
                 'smtp',
-                'log',
             ],
         ],
 
@@ -109,8 +108,8 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', 'Example'),
+        'address' => (!empty(env('MAIL_FROM_ADDRESS')) ? env('MAIL_FROM_ADDRESS') : 'hello@example.com'),
+        'name' => (!empty(env('MAIL_FROM_NAME')) ? env('MAIL_FROM_NAME') : 'Eltrack'),
     ],
 
 ];

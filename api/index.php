@@ -35,6 +35,7 @@ $defaultEnvs = [
     'APP_SERVICES_CACHE' => '/tmp/bootstrap/cache/services.php',
     'APP_PACKAGES_CACHE' => '/tmp/bootstrap/cache/packages.php',
     'BCRYPT_ROUNDS' => '12',
+    'MAIL_MAILER' => 'log',
 ];
 
 foreach ($defaultEnvs as $key => $defaultVal) {
@@ -61,6 +62,13 @@ if (empty($_ENV['BCRYPT_ROUNDS']) || (int)$_ENV['BCRYPT_ROUNDS'] < 4 || (int)$_E
     putenv('BCRYPT_ROUNDS=12');
     $_ENV['BCRYPT_ROUNDS'] = '12';
     $_SERVER['BCRYPT_ROUNDS'] = '12';
+}
+
+// Guarantee MAIL_MAILER is a valid string (prevents 'Mailer [] is not defined')
+if (empty($_ENV['MAIL_MAILER'])) {
+    putenv('MAIL_MAILER=log');
+    $_ENV['MAIL_MAILER'] = 'log';
+    $_SERVER['MAIL_MAILER'] = 'log';
 }
 
 // Copy bootstrap cache files if available
