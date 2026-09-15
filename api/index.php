@@ -94,7 +94,7 @@ try {
 } catch (\Throwable $e) {
     error_log($e->getMessage()."\n".$e->getTraceAsString());
     http_response_code(500);
-    $isDebug = (getenv('APP_DEBUG') === 'true' || getenv('APP_DEBUG') === '1' || (isset($_ENV['APP_DEBUG']) && $_ENV['APP_DEBUG'] === 'true'));
+    $isDebug = (getenv('APP_DEBUG') === 'true' || getenv('APP_DEBUG') === '1' || (isset($_ENV['APP_DEBUG']) && $_ENV['APP_DEBUG'] === 'true') || (!empty($_SERVER['HTTP_X_DEBUG']) && $_SERVER['HTTP_X_DEBUG'] === 'true'));
     if ($isDebug) {
         echo "<pre><h3>FinTrack Serverless Exception</h3>\n";
         echo "<strong>Message:</strong> ".htmlspecialchars($e->getMessage())."\n";
