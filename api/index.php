@@ -2,6 +2,11 @@
 
 define('LARAVEL_START', microtime(true));
 
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+putenv('APP_DEBUG=true');
+$_ENV['APP_DEBUG'] = 'true';
+
 $tmpDirs = [
     '/tmp/storage/app/public',
     '/tmp/storage/framework/cache/data',
