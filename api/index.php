@@ -2,13 +2,10 @@
 
 define('LARAVEL_START', microtime(true));
 
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-putenv('APP_DEBUG=true');
-$_ENV['APP_DEBUG'] = 'true';
-
+// Temporary storage and cache directories in /tmp for serverless environment
 $tmpDirs = [
     '/tmp/storage/app/public',
+    '/tmp/storage/app/private',
     '/tmp/storage/framework/cache/data',
     '/tmp/storage/framework/views',
     '/tmp/storage/framework/sessions',
@@ -22,30 +19,59 @@ foreach ($tmpDirs as $dir) {
     }
 }
 
+// Ensure essential serverless environment variables have valid fallbacks.
+// This prevents ArgumentCountError in Illuminate\Support\Manager if SESSION_DRIVER or
+// APP_MAINTENANCE_DRIVER is empty or undefined in Vercel.
+$defaultEnvs = [
+    'SESSION_DRIVER' => 'cookie',
+    'APP_MAINTENANCE_DRIVER' => 'file',
+    'APP_MAINTENANCE_STORE' => 'database',
+    'CACHE_STORE' => 'array',
+    'LOG_CHANNEL' => 'stderr',
+    'LARAVEL_STORAGE_PATH' => '/tmp/storage',
+    'VIEW_COMPILED_PATH' => '/tmp/storage/framework/views',
+    'APP_SERVICES_CACHE' => '/tmp/bootstrap/cache/services.php',
+    'APP_PACKAGES_CACHE' => '/tmp/bootstrap/cache/packages.php',
+];
+
+foreach ($defaultEnvs as $key => $defaultVal) {
+    $current = getenv($key);
+    if ($current === false || trim((string)$current) === '') {
+        putenv("{$key}={$defaultVal}");
+        $_ENV[$key] = $defaultVal;
+        $_SERVER[$key] = $defaultVal;
+    } else {
+        $_ENV[$key] = $current;
+        $_SERVER[$key] = $current;
+    }
+}
+
+// Copy bootstrap cache files if available
 $cacheFiles = ['packages.php', 'services.php'];
 foreach ($cacheFiles as $file) {
     $source = __DIR__.'/../bootstrap/cache/'.$file;
     $dest = '/tmp/bootstrap/cache/'.$file;
     if (file_exists($source) && !file_exists($dest)) {
-        copy($source, $dest);
+        @copy($source, $dest);
     }
 }
-
-putenv('LARAVEL_STORAGE_PATH=/tmp/storage');
-$_ENV['LARAVEL_STORAGE_PATH'] = '/tmp/storage';
-putenv('VIEW_COMPILED_PATH=/tmp/storage/framework/views');
-$_ENV['VIEW_COMPILED_PATH'] = '/tmp/storage/framework/views';
-putenv('APP_SERVICES_CACHE=/tmp/bootstrap/cache/services.php');
-putenv('APP_PACKAGES_CACHE=/tmp/bootstrap/cache/packages.php');
-putenv('APP_CONFIG_CACHE=/tmp/bootstrap/cache/config.php');
-putenv('APP_ROUTES_CACHE=/tmp/bootstrap/cache/routes-v7.php');
-putenv('APP_EVENTS_CACHE=/tmp/bootstrap/cache/events.php');
 
 require __DIR__.'/../vendor/autoload.php';
 
 try {
     $app = require_once __DIR__.'/../bootstrap/app.php';
+    $app->useStoragePath('/tmp/storage');
     $app->handleRequest(Illuminate\Http\Request::capture());
 } catch (\Throwable $e) {
-    echo "<pre>Error: ".$e->getMessage()."\nFile: ".$e->getFile()."\nLine: ".$e->getLine()."</pre>";
+    error_log($e->getMessage()."\n".$e->getTraceAsString());
+    http_response_code(500);
+    $isDebug = (getenv('APP_DEBUG') === 'true' || getenv('APP_DEBUG') === '1' || (isset($_ENV['APP_DEBUG']) && $_ENV['APP_DEBUG'] === 'true'));
+    if ($isDebug) {
+        echo "<pre><h3>FinTrack Serverless Exception</h3>\n";
+        echo "<strong>Message:</strong> ".htmlspecialchars($e->getMessage())."\n";
+        echo "<strong>File:</strong> ".htmlspecialchars($e->getFile())." : ".htmlspecialchars($e->getLine())."\n\n";
+        echo "<strong>Trace:</strong>\n".htmlspecialchars($e->getTraceAsString())."</pre>";
+    } else {
+        echo "<h1>500 Internal Server Error</h1><p>Terjadi kesalahan server saat memproses permintaan.</p>";
+    }
 }

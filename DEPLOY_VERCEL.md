@@ -60,45 +60,41 @@ Anda dapat memilih salah satu dari dua opsi repositori:
 
 ## Langkah 3: Pengaturan Environment Variables di Vercel
 
-Sebelum menekan tombol Deploy, buka bagian **Environment Variables** di Vercel dan tambahkan variabel berikut:
+Buka dashboard Vercel -> Proyek Anda -> **Settings** -> **Environment Variables**. Tambahkan variabel-variabel berikut (pastikan hanya mengisi nilainya saja, jangan sertakan tanda kurung atau penjelasan):
 
-| Key | Value / Penjelasan |
-| :--- | :--- |
-| `APP_NAME` | `Eltrack` |
-| `APP_ENV` | `production` |
-| `APP_DEBUG` | `false` |
-| `APP_KEY` | Salin nilai `APP_KEY` dari file `.env` lokal Anda (misal `base64:...`) |
-| `APP_URL` | Kosongkan dahulu atau isi `https://nama-proyek-anda.vercel.app` setelah deploy |
-| `LOG_CHANNEL` | `stderr` |
-| `SESSION_DRIVER` | `cookie` *(atau `database` jika tabel sessions sudah dimigrasi)* |
-| `CACHE_STORE` | `array` |
+| Key | Value | Keterangan |
+| :--- | :--- | :--- |
+| `APP_NAME` | `Eltrack` | Nama aplikasi |
+| `APP_ENV` | `production` | Environment |
+| `APP_DEBUG` | `false` | Nonaktifkan debug di production |
+| `APP_KEY` | `base64:k0kzXETEssPeFOZA+G/jQ8Rjvj+fqBQQkguUzwaq9vs=` | Kunci enkripsi aplikasi |
+| `APP_URL` | `https://manajemen-keuangan-d6pxcmxwu-rell3827s-projects.vercel.app` | URL Vercel aplikasi Anda |
+| `LOG_CHANNEL` | `stderr` | Agar error log tercatat di Vercel Functions Log |
+| `SESSION_DRIVER` | `cookie` | Sangat direkomendasikan untuk Vercel Serverless |
+| `CACHE_STORE` | `array` | Cache memori untuk serverless |
+| `DB_CONNECTION` | `pgsql` | Koneksi database Supabase PostgreSQL |
+| `DB_HOST` | `aws-0-ap-northeast-1.pooler.supabase.com` | Host Supabase |
+| `DB_PORT` | `5432` | Port Supabase |
+| `DB_DATABASE` | `postgres` | Nama database Supabase |
+| `DB_USERNAME` | `postgres.uxochfhkivcpufnhlqmj` | Username Supabase |
+| `DB_PASSWORD` | `BSAashgf123856` | Password database Supabase |
+
+> [!TIP]
+> **Penting Mengenai `SESSION_DRIVER`:**  
+> Selalu gunakan value `cookie` pada `SESSION_DRIVER` di Vercel. Jangan biarkan kosong! `cookie` membuat session login pengguna disimpan secara aman dan terenkripsi di browser pengguna, sehingga tidak terpengaruh oleh restart serverless container Vercel.
 
 ---
 
-## Langkah 4: Database Cloud (Wajib untuk Vercel)
+## Langkah 4: Verifikasi Database Supabase
 
-> [!IMPORTANT]
-> **Mengapa Database Lokal (`127.0.0.1:3306`) Tidak Bisa Digunakan?**  
-> Server Vercel berjalan di cloud secara terisolasi dan tidak dapat menjangkau komputer lokal Anda. Oleh karena itu, aplikasi membutuhkan database cloud yang dapat diakses publik via internet.
+Database Supabase sudah terhubung dan semua migrasi tabel sudah berhasil dijalankan:
+- `users`, `password_reset_tokens`, `sessions`
+- `cache`, `jobs`
+- `accounts`, `categories`, `transactions`, `transfers`, `budgets`, `voice_notes`, `financial_insights`, `notifications`
 
-### Rekomendasi Database Cloud Gratis:
-1. **TiDB Cloud Serverless (MySQL):**
-   - Gratis hingga 25 GB storage (kompatibel penuh dengan MySQL Laravel tanpa perlu ubah kode).
-   - Buka [tidbcloud.com](https://tidbcloud.com), buat cluster Serverless gratis.
-   - Ambil Host, Port (4000), User, Password, dan Database.
-2. **Supabase / Neon (PostgreSQL):**
-   - Gratis dan sangat cepat. Ganti `DB_CONNECTION=pgsql` di Vercel.
-3. **Aiven / Railway (MySQL):**
-   - Menyediakan free tier / credit untuk MySQL.
-
-### Tambahkan Variabel Database di Vercel Environment Variables:
-```env
-DB_CONNECTION=mysql
-DB_HOST=gateway01.ap-southeast-1.prod.aws.tidbcloud.com  # contoh host cloud
-DB_PORT=4000                                            # port cloud DB
-DB_DATABASE=fintrack
-DB_USERNAME=user_anda
-DB_PASSWORD=password_anda
+Jika di kemudian hari Anda menambahkan migrasi baru, jalankan dari terminal lokal:
+```bash
+php artisan migrate --force
 ```
 
 ### Cara Menjalankan Migrasi ke Database Cloud:

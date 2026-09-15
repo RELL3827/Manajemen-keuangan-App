@@ -18,7 +18,7 @@ return [
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'stack'),
+    'default' => (!empty(env('LOG_CHANNEL')) ? env('LOG_CHANNEL') : 'stack'),
 
     /*
     |--------------------------------------------------------------------------
