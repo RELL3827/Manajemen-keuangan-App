@@ -24,10 +24,6 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        \Illuminate\Support\Facades\Vite::useAssetPathResolver(function ($path) {
-            return secure_asset($path);
-        });
-
         Paginator::useBootstrapFive();
 
         Blade::directive('money', fn ($expression) => "<?php echo \App\Support\Money::format($expression); ?>");
