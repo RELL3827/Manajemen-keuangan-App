@@ -16,29 +16,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LandingController::class, 'index'])->name('landing');
 
-Route::get('/debug-hash', function () {
-    $res = [
-        'algos' => password_algos(),
-        'bc_rounds_env' => getenv('BCRYPT_ROUNDS'),
-    ];
-    try {
-        $res['test_default'] = password_hash('secret', PASSWORD_BCRYPT);
-    } catch (\Throwable $e) {
-        $res['test_default_err'] = get_class($e) . ': ' . $e->getMessage();
-    }
-    try {
-        $res['test_cost_10'] = password_hash('secret', PASSWORD_BCRYPT, ['cost' => 10]);
-    } catch (\Throwable $e) {
-        $res['test_cost_10_err'] = get_class($e) . ': ' . $e->getMessage();
-    }
-    try {
-        $res['hash_facade'] = Illuminate\Support\Facades\Hash::make('secret');
-    } catch (\Throwable $e) {
-        $res['hash_facade_err'] = get_class($e) . ': ' . $e->getMessage();
-    }
-    return response()->json($res);
-});
-
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/data', [DashboardController::class, 'data'])->name('dashboard.data');

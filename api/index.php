@@ -34,6 +34,7 @@ $defaultEnvs = [
     'VIEW_COMPILED_PATH' => '/tmp/storage/framework/views',
     'APP_SERVICES_CACHE' => '/tmp/bootstrap/cache/services.php',
     'APP_PACKAGES_CACHE' => '/tmp/bootstrap/cache/packages.php',
+    'BCRYPT_ROUNDS' => '12',
 ];
 
 foreach ($defaultEnvs as $key => $defaultVal) {
@@ -53,6 +54,13 @@ if (empty($_ENV['SESSION_LIFETIME']) || (int)$_ENV['SESSION_LIFETIME'] <= 0) {
     putenv('SESSION_LIFETIME=120');
     $_ENV['SESSION_LIFETIME'] = '120';
     $_SERVER['SESSION_LIFETIME'] = '120';
+}
+
+// Guarantee BCRYPT_ROUNDS is an integer between 4 and 31 (prevents 'Bcrypt hashing not supported')
+if (empty($_ENV['BCRYPT_ROUNDS']) || (int)$_ENV['BCRYPT_ROUNDS'] < 4 || (int)$_ENV['BCRYPT_ROUNDS'] > 31) {
+    putenv('BCRYPT_ROUNDS=12');
+    $_ENV['BCRYPT_ROUNDS'] = '12';
+    $_SERVER['BCRYPT_ROUNDS'] = '12';
 }
 
 // Copy bootstrap cache files if available
