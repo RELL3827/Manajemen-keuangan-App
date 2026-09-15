@@ -20,7 +20,7 @@ $tmpDirs = [
     '/tmp/bootstrap/cache',
 ];
 
-foreach ($tmpDirs as $dir) {
+foreach ($storageDirectories as $dir) {
     if (!is_dir($dir)) {
         @mkdir($dir, 0755, true);
     }
