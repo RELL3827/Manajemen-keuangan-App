@@ -73,7 +73,7 @@ return [
     |
     */
 
-    'connection' => env('SESSION_CONNECTION'),
+    'connection' => (!empty(env('SESSION_CONNECTION')) && env('SESSION_CONNECTION') !== 'null') ? env('SESSION_CONNECTION') : null,
 
     /*
     |--------------------------------------------------------------------------
