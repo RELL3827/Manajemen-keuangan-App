@@ -23,6 +23,7 @@ foreach ($tmpDirs as $dir) {
 // This prevents ArgumentCountError in Illuminate\Support\Manager if SESSION_DRIVER or
 // APP_MAINTENANCE_DRIVER is empty or undefined in Vercel.
 $defaultEnvs = [
+    'APP_ENV' => 'production',
     'SESSION_DRIVER' => 'cookie',
     'APP_MAINTENANCE_DRIVER' => 'file',
     'APP_MAINTENANCE_STORE' => 'database',
