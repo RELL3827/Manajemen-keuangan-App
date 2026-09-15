@@ -56,6 +56,26 @@ foreach ($cacheFiles as $file) {
     }
 }
 
+if (!isset($_SERVER['REMOTE_ADDR'])) {
+    $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+}
+
+// Normalize HTTPS headers for Vercel reverse proxy
+if ((isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+    (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') ||
+    (isset($_SERVER['HTTP_HOST']) && str_contains($_SERVER['HTTP_HOST'], 'vercel.app'))) {
+    $_SERVER['HTTPS'] = 'on';
+    $_SERVER['SERVER_PORT'] = '443';
+}
+
+$appUrl = getenv('APP_URL');
+if ($appUrl && str_starts_with($appUrl, 'http://') && !str_contains($appUrl, 'localhost') && !str_contains($appUrl, '127.0.0.1')) {
+    $httpsUrl = preg_replace('/^http:\/\//', 'https://', $appUrl);
+    putenv("APP_URL={$httpsUrl}");
+    $_ENV['APP_URL'] = $httpsUrl;
+    $_SERVER['APP_URL'] = $httpsUrl;
+}
+
 require __DIR__.'/../vendor/autoload.php';
 
 try {
