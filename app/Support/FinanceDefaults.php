@@ -34,16 +34,36 @@ class FinanceDefaults
             ['Lainnya', 'bi-three-dots', '#6b7280'],
         ];
 
-        foreach (array_merge($income, $expense) as [$name, $icon, $color]) {
-            Category::create([
+        $now = now();
+        $categoriesData = [];
+
+        foreach ($income as [$name, $icon, $color]) {
+            $categoriesData[] = [
                 'user_id' => $user->id,
                 'name' => $name,
-                'type' => in_array($name, array_column($income, 0), true) ? 'income' : 'expense',
+                'type' => 'income',
                 'icon' => $icon,
                 'color' => $color,
                 'is_default' => true,
-            ]);
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
         }
+
+        foreach ($expense as [$name, $icon, $color]) {
+            $categoriesData[] = [
+                'user_id' => $user->id,
+                'name' => $name,
+                'type' => 'expense',
+                'icon' => $icon,
+                'color' => $color,
+                'is_default' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        Category::insert($categoriesData);
     }
 
     public static function createDefaultAccounts(User $user): void
@@ -54,8 +74,11 @@ class FinanceDefaults
             ['DANA', 'ewallet', 0, '#3b82f6', false],
         ];
 
+        $now = now();
+        $accountsData = [];
+
         foreach ($accounts as [$name, $type, $balance, $color, $default]) {
-            Account::create([
+            $accountsData[] = [
                 'user_id' => $user->id,
                 'name' => $name,
                 'type' => $type,
@@ -63,7 +86,11 @@ class FinanceDefaults
                 'balance' => $balance,
                 'color' => $color,
                 'is_default' => $default,
-            ]);
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
         }
+
+        Account::insert($accountsData);
     }
 }

@@ -35,9 +35,21 @@ class Budget extends Model
         return $this->belongsTo(Category::class);
     }
 
+    protected ?float $cachedSpent = null;
+
+    public function setCachedSpent(float $amount): static
+    {
+        $this->cachedSpent = $amount;
+        return $this;
+    }
+
     public function spentAmount(): float
     {
-        return (float) Transaction::where('user_id', $this->user_id)
+        if ($this->cachedSpent !== null) {
+            return $this->cachedSpent;
+        }
+
+        return $this->cachedSpent = (float) Transaction::where('user_id', $this->user_id)
             ->where('category_id', $this->category_id)
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [$this->start_date, $this->end_date])

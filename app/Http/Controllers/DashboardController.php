@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -28,7 +29,7 @@ class DashboardController extends Controller
         $budgets = $user->budgets()->with('category')->get();
         $totalBudget = $budgets->sum('amount');
         $totalSpent = $budgets->sum(fn ($b) => $b->spentAmount());
-        $unread = $user->notificationsUser()->unread()->count();
+        $unread = $user->unread_notifications_count;
 
         [$from, $to] = [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()];
         $summary = $this->summary($user, $from, $to);
@@ -71,20 +72,28 @@ class DashboardController extends Controller
 
     private function summary($user, string $from, string $to): array
     {
-        $tx = $user->transactions()->whereBetween('transaction_date', [$from, $to]);
+        $stats = $user->transactions()
+            ->whereBetween('transaction_date', [$from, $to])
+            ->selectRaw("
+                COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as income,
+                COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expense,
+                COUNT(*) as count
+            ")
+            ->first();
 
-        $income = (float) (clone $tx)->where('type', 'income')->sum('amount');
-        $expense = (float) (clone $tx)->where('type', 'expense')->sum('amount');
-        $count = (clone $tx)->count();
+        $income = (float) ($stats->income ?? 0);
+        $expense = (float) ($stats->expense ?? 0);
+        $count = (int) ($stats->count ?? 0);
+        $balance = (float) $user->accounts()->sum('balance');
 
         return [
-            'balance' => (float) $user->accounts()->sum('balance'),
+            'balance' => $balance,
             'income' => $income,
             'expense' => $expense,
             'net' => $income - $expense,
             'count' => $count,
             'format' => [
-                'balance' => Money::format($user->accounts()->sum('balance')),
+                'balance' => Money::format($balance),
                 'income' => Money::format($income),
                 'expense' => Money::format($expense),
                 'net' => Money::format($income - $expense),
@@ -96,45 +105,59 @@ class DashboardController extends Controller
     {
         $carbonFrom = Carbon::parse($from);
         $carbonTo = Carbon::parse($to);
-        $months = [];
 
         $startMonth = $carbonFrom->copy()->startOfMonth();
         $endMonth = $carbonTo->copy()->startOfMonth();
         $monthCount = $endMonth->diffInMonths($startMonth) + 1;
 
         if ($monthCount <= 3) {
-            $current = $startMonth->copy();
-            while ($current->lte($endMonth)) {
-                $label = $current->translatedFormat('M Y');
-                [$income, $expense] = $this->monthTotals($user, $current);
-                $months[] = ['label' => $label, 'income' => $income, 'expense' => $expense];
-                $current->addMonth();
-            }
-
-            return $months;
+            $rangeStart = $startMonth->copy();
+            $rangeEnd = $endMonth->copy()->endOfMonth();
+        } else {
+            $yearStart = $carbonFrom->copy()->startOfYear();
+            $rangeStart = $yearStart->copy();
+            $rangeEnd = $yearStart->copy()->addMonths(11)->endOfMonth();
         }
 
-        $yearStart = $carbonFrom->copy()->startOfYear();
-        for ($i = 0; $i < 12; $i++) {
-            $monthLabel = $yearStart->copy()->addMonths($i);
-            [$income, $expense] = $this->monthTotals($user, $monthLabel);
-            $months[] = ['label' => $monthLabel->translatedFormat('M'), 'income' => $income, 'expense' => $expense];
+        $driver = config('database.default');
+        $dateFormat = $driver === 'sqlite' ? "strftime('%Y-%m', transaction_date)" : "TO_CHAR(transaction_date, 'YYYY-MM')";
+
+        $rows = $user->transactions()
+            ->whereBetween('transaction_date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->selectRaw("{$dateFormat} as ym, type, SUM(amount) as total")
+            ->groupBy(DB::raw("{$dateFormat}"), 'type')
+            ->get();
+
+        $lookup = [];
+        foreach ($rows as $r) {
+            $lookup[$r->ym][$r->type] = (float) $r->total;
+        }
+
+        $months = [];
+        if ($monthCount <= 3) {
+            $current = $startMonth->copy();
+            while ($current->lte($endMonth)) {
+                $ym = $current->format('Y-m');
+                $months[] = [
+                    'label' => $current->translatedFormat('M Y'),
+                    'income' => $lookup[$ym]['income'] ?? 0.0,
+                    'expense' => $lookup[$ym]['expense'] ?? 0.0,
+                ];
+                $current->addMonth();
+            }
+        } else {
+            for ($i = 0; $i < 12; $i++) {
+                $monthLabel = $rangeStart->copy()->addMonths($i);
+                $ym = $monthLabel->format('Y-m');
+                $months[] = [
+                    'label' => $monthLabel->translatedFormat('M'),
+                    'income' => $lookup[$ym]['income'] ?? 0.0,
+                    'expense' => $lookup[$ym]['expense'] ?? 0.0,
+                ];
+            }
         }
 
         return $months;
-    }
-
-    private function monthTotals($user, Carbon $month): array
-    {
-        $q = $user->transactions()->whereBetween('transaction_date', [
-            $month->copy()->startOfMonth()->toDateString(),
-            $month->copy()->endOfMonth()->toDateString(),
-        ]);
-
-        return [
-            (float) (clone $q)->where('type', 'income')->sum('amount'),
-            (float) (clone $q)->where('type', 'expense')->sum('amount'),
-        ];
     }
 
     private function categoryBreakdown($user, string $type, string $from, string $to): array
@@ -177,11 +200,10 @@ class DashboardController extends Controller
             $periodDiff += $tx->type === 'income' ? (float) $tx->amount : -((float) $tx->amount);
         }
 
-        $after = $user->transactions()->where('transaction_date', '>', $to)->get(['type', 'amount']);
-        $afterDiff = 0;
-        foreach ($after as $tx) {
-            $afterDiff += $tx->type === 'income' ? (float) $tx->amount : -((float) $tx->amount);
-        }
+        $afterDiff = (float) $user->transactions()
+            ->where('transaction_date', '>', $to)
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as diff")
+            ->value('diff');
 
         $running = $todayBalance - $afterDiff - $periodDiff;
 
@@ -203,16 +225,29 @@ class DashboardController extends Controller
         $from = now()->subDays(6)->startOfDay();
         $to = now()->endOfDay();
 
+        $rows = $user->transactions()
+            ->whereBetween('transaction_date', [$from->toDateString(), $to->toDateString()])
+            ->selectRaw("transaction_date, type, SUM(amount) as total")
+            ->groupBy('transaction_date', 'type')
+            ->get();
+
+        $lookup = [];
+        foreach ($rows as $r) {
+            $dStr = is_string($r->transaction_date) ? substr($r->transaction_date, 0, 10) : $r->transaction_date->toDateString();
+            $lookup[$dStr][$r->type] = (float) $r->total;
+        }
+
         $labels = [];
         $income = [];
         $expense = [];
 
         for ($d = 0; $d < 7; $d++) {
             $day = $from->copy()->addDays($d);
+            $dStr = $day->toDateString();
             $labels[] = $day->translatedFormat('D');
 
-            $income[$d] = (float) $user->transactions()->where('type', 'income')->whereDate('transaction_date', $day)->sum('amount');
-            $expense[$d] = (float) $user->transactions()->where('type', 'expense')->whereDate('transaction_date', $day)->sum('amount');
+            $income[$d] = $lookup[$dStr]['income'] ?? 0.0;
+            $expense[$d] = $lookup[$dStr]['expense'] ?? 0.0;
         }
 
         return compact('labels', 'income', 'expense');

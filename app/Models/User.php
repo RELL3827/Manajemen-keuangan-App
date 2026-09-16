@@ -88,4 +88,15 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return (float) $this->accounts()->sum('balance');
     }
+
+    protected ?int $cachedUnreadCount = null;
+
+    public function getUnreadNotificationsCountAttribute(): int
+    {
+        if ($this->cachedUnreadCount !== null) {
+            return $this->cachedUnreadCount;
+        }
+
+        return $this->cachedUnreadCount = $this->notificationsUser()->unread()->count();
+    }
 }

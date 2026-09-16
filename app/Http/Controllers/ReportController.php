@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -86,38 +87,54 @@ class ReportController extends Controller
     {
         $start = Carbon::parse($p['from']);
         $end = Carbon::parse($p['to']);
+
+        $isYearly = $start->diffInMonths($end) > 11;
+        if ($isYearly) {
+            $rangeStart = $start->copy()->startOfYear();
+            $rangeEnd = $rangeStart->copy()->addMonths(11)->endOfMonth();
+        } else {
+            $rangeStart = $start->copy()->startOfMonth();
+            $rangeEnd = $end->copy()->endOfMonth();
+        }
+
+        $driver = config('database.default');
+        $dateFormat = $driver === 'sqlite' ? "strftime('%Y-%m', transaction_date)" : "TO_CHAR(transaction_date, 'YYYY-MM')";
+
+        $rows = $user->transactions()
+            ->whereBetween('transaction_date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->selectRaw("{$dateFormat} as ym, type, SUM(amount) as total")
+            ->groupBy(DB::raw("{$dateFormat}"), 'type')
+            ->get();
+
+        $lookup = [];
+        foreach ($rows as $r) {
+            $lookup[$r->ym][$r->type] = (float) $r->total;
+        }
+
         $labels = [];
         $income = [];
         $expense = [];
 
-        if ($start->diffInMonths($end) > 11) {
-            $year = $start->copy()->startOfYear();
+        if ($isYearly) {
             for ($i = 0; $i < 12; $i++) {
-                $m = $year->copy()->addMonths($i);
+                $m = $rangeStart->copy()->addMonths($i);
+                $ym = $m->format('Y-m');
                 $labels[] = $m->translatedFormat('M');
-                $income[] = $this->monthSum($user, $m, 'income');
-                $expense[] = $this->monthSum($user, $m, 'expense');
+                $income[] = $lookup[$ym]['income'] ?? 0.0;
+                $expense[] = $lookup[$ym]['expense'] ?? 0.0;
             }
-
-            return compact('labels', 'income', 'expense');
-        }
-
-        $cursor = $start->copy()->startOfMonth();
-        while ($cursor->lte($end)) {
-            $labels[] = $cursor->translatedFormat('M Y');
-            $income[] = $this->monthSum($user, $cursor, 'income');
-            $expense[] = $this->monthSum($user, $cursor, 'expense');
-            $cursor->addMonth();
+        } else {
+            $cursor = $rangeStart->copy();
+            while ($cursor->lte($rangeEnd)) {
+                $ym = $cursor->format('Y-m');
+                $labels[] = $cursor->translatedFormat('M Y');
+                $income[] = $lookup[$ym]['income'] ?? 0.0;
+                $expense[] = $lookup[$ym]['expense'] ?? 0.0;
+                $cursor->addMonth();
+            }
         }
 
         return compact('labels', 'income', 'expense');
-    }
-
-    private function monthSum($user, Carbon $month, string $type): float
-    {
-        return (float) $user->transactions()->where('type', $type)
-            ->whereBetween('transaction_date', [$month->copy()->startOfMonth()->toDateString(), $month->copy()->endOfMonth()->toDateString()])
-            ->sum('amount');
     }
 
     public function index(Request $request): View

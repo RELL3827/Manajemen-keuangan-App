@@ -47,12 +47,11 @@ class RegisteredUserController extends Controller
         FinanceDefaults::createCategories($user);
         FinanceDefaults::createDefaultAccounts($user);
 
-        (new NotificationService)->ensure([
-            'user_id' => $user->id,
+        $user->notificationsUser()->create([
             'type' => 'system',
             'title' => 'Selamat datang di Eltrack 🎉',
             'message' => 'Kamu bisa langsung mencatat transaksi dengan suara. Sentuh tombol mikrofon di halaman utama.',
-        ], now()->toDateString());
+        ]);
 
         event(new Registered($user));
 

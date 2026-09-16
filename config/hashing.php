@@ -29,7 +29,7 @@ return [
     */
 
     'bcrypt' => [
-        'rounds' => (!empty(env('BCRYPT_ROUNDS')) && (int)env('BCRYPT_ROUNDS') >= 4 && (int)env('BCRYPT_ROUNDS') <= 31) ? (int)env('BCRYPT_ROUNDS') : 12,
+        'rounds' => (!empty(env('BCRYPT_ROUNDS')) && (int)env('BCRYPT_ROUNDS') >= 4 && (int)env('BCRYPT_ROUNDS') <= 31) ? (int)env('BCRYPT_ROUNDS') : 10,
         'verify' => true,
     ],
 

@@ -61,8 +61,9 @@
         </a>
         <a href="{{ route('notifications.index') }}" class="ft-nav-item {{ request()->routeIs('notifications.*') ? 'active' : '' }}">
             <i class="bi bi-bell"></i> Notifikasi
-            @if(optional(auth()->user()) instanceof \App\Models\User && auth()->user()->notificationsUser()->unread()->count() > 0)
-                <span class="badge-ft">{{ auth()->user()->notificationsUser()->unread()->count() }}</span>
+            @php $uCount = auth()->user()?->unread_notifications_count ?? 0; @endphp
+            @if($uCount > 0)
+                <span class="badge-ft">{{ $uCount }}</span>
             @endif
         </a>
 
@@ -99,8 +100,8 @@
 
         <a href="{{ route('notifications.index') }}" class="position-relative text-muted d-none d-lg-inline-block" aria-label="Notifikasi">
             <i class="bi bi-bell fs-5"></i>
-            @if(auth()->user()->notificationsUser()->unread()->count() > 0)
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem">{{ auth()->user()->notificationsUser()->unread()->count() }}</span>
+            @if($uCount > 0)
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem">{{ $uCount }}</span>
             @endif
         </a>
 

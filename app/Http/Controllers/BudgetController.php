@@ -40,7 +40,7 @@ class BudgetController extends Controller
         return view('budgets.index', [
             'budgets' => $enriched,
             'categories' => $categories,
-            'totalBudget' => $user->budgets()->sum('amount'),
+            'totalBudget' => $budgets->sum('amount'),
         ]);
     }
 
